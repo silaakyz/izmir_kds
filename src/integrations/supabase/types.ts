@@ -44,6 +44,214 @@ export type Database = {
         }
         Relationships: []
       }
+      districts: {
+        Row: {
+          id: number
+          name: string
+          latitude: number
+          longitude: number
+          radius: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          latitude: number
+          longitude: number
+          radius: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          latitude?: number
+          longitude?: number
+          radius?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      district_scores: {
+        Row: {
+          id: number
+          district_id: number
+          infrastructure: number
+          environment: number
+          social: number
+          transportation: number
+          security: number
+          education: number
+          health: number
+          overall: number
+          period_start: string
+          period_end: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          district_id: number
+          infrastructure: number
+          environment: number
+          social: number
+          transportation: number
+          security: number
+          education: number
+          health: number
+          overall: number
+          period_start?: string
+          period_end?: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          district_id?: number
+          infrastructure?: number
+          environment?: number
+          social?: number
+          transportation?: number
+          security?: number
+          education?: number
+          health?: number
+          overall?: number
+          period_start?: string
+          period_end?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "district_scores_district_id_fkey"
+            columns: ["district_id"]
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      negative_factors: {
+        Row: {
+          id: number
+          district_id: number
+          uncontrolled_migration: number
+          informal_settlement: number
+          crime_rate: number
+          traffic_congestion: number
+          noise_pollution: number
+          period_start: string
+          period_end: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          district_id: number
+          uncontrolled_migration: number
+          informal_settlement: number
+          crime_rate: number
+          traffic_congestion: number
+          noise_pollution: number
+          period_start?: string
+          period_end?: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          district_id?: number
+          uncontrolled_migration?: number
+          informal_settlement?: number
+          crime_rate?: number
+          traffic_congestion?: number
+          noise_pollution?: number
+          period_start?: string
+          period_end?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "negative_factors_district_id_fkey"
+            columns: ["district_id"]
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      recommended_actions: {
+        Row: {
+          id: number
+          district_id: number
+          action: string
+          potential_score: number
+          priority: 'high' | 'medium' | 'low'
+          budget: string | null
+          status: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          district_id: number
+          action: string
+          potential_score: number
+          priority: 'high' | 'medium' | 'low'
+          budget?: string | null
+          status?: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          district_id?: number
+          action?: string
+          potential_score?: number
+          priority?: 'high' | 'medium' | 'low'
+          budget?: string | null
+          status?: 'pending' | 'approved' | 'in_progress' | 'completed' | 'cancelled'
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recommended_actions_district_id_fkey"
+            columns: ["district_id"]
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      trend_data: {
+        Row: {
+          id: number
+          district_id: number
+          period_type: 'monthly' | 'quarterly' | 'yearly'
+          period_value: string
+          overall_score: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          district_id: number
+          period_type: 'monthly' | 'quarterly' | 'yearly'
+          period_value: string
+          overall_score: number
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          district_id?: number
+          period_type?: 'monthly' | 'quarterly' | 'yearly'
+          period_value?: string
+          overall_score?: number
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trend_data_district_id_fkey"
+            columns: ["district_id"]
+            referencedRelation: "districts"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

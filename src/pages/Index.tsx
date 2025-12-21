@@ -7,6 +7,7 @@ import { ResourceAllocation } from "@/components/allocation/ResourceAllocation";
 import { InteractiveMap } from "@/components/map/InteractiveMap";
 import { LiveAnalytics } from "@/components/analytics/LiveAnalytics";
 import { districtData } from "@/data/districtData";
+import { useDistricts } from "@/hooks/useDistricts";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardKPICards } from "@/components/dashboard/DashboardKPICards";
 import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
@@ -19,9 +20,15 @@ const Index = () => {
   const [scoreRange, setScoreRange] = useState([0, 10]);
   const [sortBy, setSortBy] = useState("score-desc");
 
+  // Veritabanından verileri çek
+  const { districts: dbDistricts, loading, error } = useDistricts();
+  
+  // Veritabanı verileri yoksa fallback olarak mock verileri kullan
+  const allDistricts = dbDistricts.length > 0 ? dbDistricts : districtData;
+
   // Filter districts based on criteria
   const filteredDistricts = useMemo(() => {
-    let result = [...districtData];
+    let result = [...allDistricts];
 
     // Filter by score range
     result = result.filter(
@@ -45,7 +52,7 @@ const Index = () => {
     }
 
     return result;
-  }, [scoreRange, sortBy]);
+  }, [allDistricts, scoreRange, sortBy]);
 
   // Calculate summary stats
   const stats = useMemo(() => {
@@ -82,6 +89,23 @@ const Index = () => {
     setSortBy("score-desc");
   };
 
+  // Loading durumu
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Veriler yükleniyor...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Hata durumu (sadece veritabanı verisi yoksa göster)
+  if (error && dbDistricts.length === 0) {
+    console.warn('Database error, using mock data:', error);
+  }
+
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
@@ -112,7 +136,7 @@ const Index = () => {
               <div className="lg:col-span-3">
                 <DashboardCharts
                   districts={filteredDistricts}
-                  allDistricts={districtData}
+                  allDistricts={allDistricts}
                 />
               </div>
             </div>
@@ -123,16 +147,16 @@ const Index = () => {
         );
 
       case "analytics":
-        return <LiveAnalytics districts={districtData} />;
+        return <LiveAnalytics districts={allDistricts} />;
 
       case "map":
-        return <InteractiveMap districts={districtData} />;
+        return <InteractiveMap districts={allDistricts} />;
 
       case "scenarios":
-        return <ScenarioAnalysis districts={districtData} />;
+        return <ScenarioAnalysis districts={allDistricts} />;
 
       case "allocation":
-        return <ResourceAllocation districts={districtData} />;
+        return <ResourceAllocation districts={allDistricts} />;
 
       default:
         return null;
