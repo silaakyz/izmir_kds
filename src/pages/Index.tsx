@@ -1,126 +1,124 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
-import { StatsCard } from "@/components/dashboard/StatsCard";
-import { DistrictScoreCard } from "@/components/dashboard/DistrictScoreCard";
-import { PerformanceChart } from "@/components/dashboard/PerformanceChart";
-import { RecommendationsPanel } from "@/components/dashboard/RecommendationsPanel";
 import { ScenarioAnalysis } from "@/components/scenarios/ScenarioAnalysis";
 import { ResourceAllocation } from "@/components/allocation/ResourceAllocation";
 import { InteractiveMap } from "@/components/map/InteractiveMap";
 import { LiveAnalytics } from "@/components/analytics/LiveAnalytics";
 import { districtData } from "@/data/districtData";
-import heroBg from "@/assets/hero-bg.jpg";
-import {
-  MapPin,
-  TrendingUp,
-  Target,
-  Users,
-} from "lucide-react";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { DashboardKPICards } from "@/components/dashboard/DashboardKPICards";
+import { DashboardFilters } from "@/components/dashboard/DashboardFilters";
+import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
+import { DashboardTable } from "@/components/dashboard/DashboardTable";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [scoreRange, setScoreRange] = useState([0, 10]);
+  const [sortBy, setSortBy] = useState("score-desc");
+
+  // Filter districts based on criteria
+  const filteredDistricts = useMemo(() => {
+    let result = [...districtData];
+
+    // Filter by score range
+    result = result.filter(
+      (d) => d.scores.overall >= scoreRange[0] && d.scores.overall <= scoreRange[1]
+    );
+
+    // Sort
+    switch (sortBy) {
+      case "score-desc":
+        result.sort((a, b) => b.scores.overall - a.scores.overall);
+        break;
+      case "score-asc":
+        result.sort((a, b) => a.scores.overall - b.scores.overall);
+        break;
+      case "name-asc":
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case "name-desc":
+        result.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+    }
+
+    return result;
+  }, [scoreRange, sortBy]);
 
   // Calculate summary stats
-  const avgScore =
-    districtData.reduce((sum, d) => sum + d.scores.overall, 0) /
-    districtData.length;
-  const highPerformers = districtData.filter((d) => d.scores.overall >= 8.0).length;
-  const needsAttention = districtData.filter((d) => d.scores.overall < 5.0).length;
-  const totalActions = districtData.reduce(
-    (sum, d) => sum + d.recommendedActions.length,
-    0
-  );
+  const stats = useMemo(() => {
+    const avgScore =
+      filteredDistricts.reduce((sum, d) => sum + d.scores.overall, 0) /
+      (filteredDistricts.length || 1);
+    const highPerformers = filteredDistricts.filter((d) => d.scores.overall >= 8.0).length;
+    const mediumPerformers = filteredDistricts.filter(
+      (d) => d.scores.overall >= 5.0 && d.scores.overall < 8.0
+    ).length;
+    const lowPerformers = filteredDistricts.filter((d) => d.scores.overall < 5.0).length;
+    const totalActions = filteredDistricts.reduce(
+      (sum, d) => sum + d.recommendedActions.length,
+      0
+    );
+    const maxScore = Math.max(...filteredDistricts.map((d) => d.scores.overall), 0);
+    const minScore = Math.min(...filteredDistricts.map((d) => d.scores.overall), 10);
 
-  const sortedDistricts = [...districtData].sort(
-    (a, b) => a.scores.overall - b.scores.overall
-  );
+    return {
+      avgScore,
+      highPerformers,
+      mediumPerformers,
+      lowPerformers,
+      totalActions,
+      maxScore,
+      minScore,
+      totalDistricts: filteredDistricts.length,
+    };
+  }, [filteredDistricts]);
+
+  const handleReset = () => {
+    setSelectedCategory("all");
+    setScoreRange([0, 10]);
+    setSortBy("score-desc");
+  };
 
   const renderContent = () => {
     switch (activeTab) {
       case "dashboard":
         return (
-          <div className="space-y-8">
-            {/* Hero Section */}
-            <div className="text-center py-8 animate-fade-up">
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                LuxCivic{" "}
-                <span className="gradient-text">Karar Destek Sistemi</span>
-              </h1>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Kentsel karar vericilerin farklı senaryolar altında en uygun kaynak
-                dağıtımı ve hizmet önceliklendirmesi kararlarını alabilmesi için
-                geliştirilen çok kriterli analiz platformu.
-              </p>
-            </div>
+          <div className="space-y-6">
+            {/* Dashboard Header */}
+            <DashboardHeader onReset={handleReset} />
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatsCard
-                title="Ortalama Skor"
-                value={avgScore.toFixed(1)}
-                subtitle="10 üzerinden"
-                icon={Target}
-                trend={{ value: 3.2, isPositive: true }}
-              />
-              <StatsCard
-                title="Bölge Sayısı"
-                value={districtData.length}
-                subtitle="İzmir ilçeleri"
-                icon={MapPin}
-                delay={100}
-              />
-              <StatsCard
-                title="Yüksek Performans"
-                value={highPerformers}
-                subtitle="8+ skor"
-                icon={TrendingUp}
-                trend={{ value: 12, isPositive: true }}
-                delay={200}
-              />
-              <StatsCard
-                title="Aksiyon Önerisi"
-                value={totalActions}
-                subtitle="öncelikli eylem"
-                icon={Users}
-                delay={300}
-              />
-            </div>
+            {/* KPI Cards */}
+            <DashboardKPICards stats={stats} />
 
-            {/* Main Dashboard Grid */}
-            <div className="grid lg:grid-cols-3 gap-6">
-              {/* Performance Chart - 2 cols */}
-              <div className="lg:col-span-2">
-                <PerformanceChart />
-              </div>
-
-              {/* Recommendations - 1 col */}
+            {/* Main Content Grid */}
+            <div className="grid lg:grid-cols-4 gap-6">
+              {/* Filters Sidebar */}
               <div className="lg:col-span-1">
-                <RecommendationsPanel districts={districtData} />
+                <DashboardFilters
+                  selectedCategory={selectedCategory}
+                  setSelectedCategory={setSelectedCategory}
+                  scoreRange={scoreRange}
+                  setScoreRange={setScoreRange}
+                  sortBy={sortBy}
+                  setSortBy={setSortBy}
+                  stats={stats}
+                />
+              </div>
+
+              {/* Charts Area */}
+              <div className="lg:col-span-3">
+                <DashboardCharts
+                  districts={filteredDistricts}
+                  allDistricts={districtData}
+                />
               </div>
             </div>
 
-            {/* District Score Cards */}
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-foreground">
-                  Bölge Skorları
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Düşükten yükseğe sıralı
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
-                {sortedDistricts.map((district, index) => (
-                  <DistrictScoreCard
-                    key={district.id}
-                    district={district}
-                    rank={index + 1}
-                  />
-                ))}
-              </div>
-            </div>
+            {/* Bottom Table */}
+            <DashboardTable districts={filteredDistricts} />
           </div>
         );
 
@@ -155,22 +153,10 @@ const Index = () => {
         />
       </Helmet>
 
-      <div className="min-h-screen flex flex-col bg-background relative">
-        {/* Subtle background pattern */}
-        <div
-          className="fixed inset-0 pointer-events-none opacity-5 -z-10"
-          style={{
-            backgroundImage: `url(${heroBg})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            backgroundAttachment: "fixed",
-          }}
-        />
-        <div className="fixed inset-0 pointer-events-none -z-10 bg-gradient-to-b from-background/95 via-background/90 to-background/95" />
-
+      <div className="min-h-screen flex flex-col bg-background">
         <Header activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <main className="flex-1 container mx-auto px-4 py-8">
+        <main className="flex-1 container mx-auto px-4 py-6">
           {renderContent()}
         </main>
 
