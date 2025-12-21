@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { District } from "@/data/districtData";
 import { cn } from "@/lib/utils";
+import { DistrictDetailDialog } from "./DistrictDetailDialog";
 
 interface DashboardTableProps {
   districts: District[];
@@ -38,6 +39,8 @@ const ITEMS_PER_PAGE = 10;
 export const DashboardTable = ({ districts }: DashboardTableProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedDistrict, setSelectedDistrict] = useState<District | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const filteredDistricts = districts.filter((d) =>
     d.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -154,7 +157,15 @@ export const DashboardTable = ({ districts }: DashboardTableProps) => {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="icon" className="h-6 w-6">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={() => {
+                        setSelectedDistrict(district);
+                        setDetailOpen(true);
+                      }}
+                    >
                       <ExternalLink className="w-3 h-3" />
                     </Button>
                   </TableCell>
@@ -216,6 +227,12 @@ export const DashboardTable = ({ districts }: DashboardTableProps) => {
           </div>
         )}
       </CardContent>
+
+      <DistrictDetailDialog
+        district={selectedDistrict}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+      />
     </Card>
   );
 };
