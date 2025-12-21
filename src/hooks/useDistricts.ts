@@ -9,9 +9,22 @@ export const useDistricts = () => {
 
   useEffect(() => {
     const fetchDistricts = async () => {
+      const start = Date.now();
+      const timeoutMs = 8000; // fall back to mock data after 8s
+      let timeoutId: NodeJS.Timeout | null = null;
+
       try {
+        console.log('[useDistricts] Starting fetchDistricts');
         setLoading(true);
         setError(null);
+
+        // Safety timeout so UI doesn't stay stuck
+        timeoutId = setTimeout(() => {
+          console.warn(`[useDistricts] Fetching districts timed out after ${timeoutMs}ms — using fallback mock data`);
+          setDistricts([]); // caller will fall back to `districtData` in the page
+          setError('Timeout while fetching districts');
+          setLoading(false);
+        }, timeoutMs);
 
         // En son skorları almak için Q1 2025 verilerini çek
         const currentPeriodStart = '2025-01-01';
@@ -26,6 +39,8 @@ export const useDistricts = () => {
         if (districtsError) throw districtsError;
         if (!districtsData) return;
 
+        console.log(`[useDistricts] Received ${districtsData.length} districts, fetching details... (elapsed ${Date.now() - start}ms)`);
+
         // Her bölge için skorları, negatif faktörleri, trend verilerini ve aksiyonları çek
         const districtsWithData = await Promise.all(
           districtsData.map(async (district) => {
@@ -36,7 +51,7 @@ export const useDistricts = () => {
               .eq('district_id', district.id)
               .eq('period_start', currentPeriodStart)
               .eq('period_end', currentPeriodEnd)
-              .single();
+              .limit(1);
 
             // Negatif faktörleri çek
             const { data: factorsData } = await supabase
@@ -45,7 +60,7 @@ export const useDistricts = () => {
               .eq('district_id', district.id)
               .eq('period_start', currentPeriodStart)
               .eq('period_end', currentPeriodEnd)
-              .single();
+              .limit(1);
 
             // Trend verilerini çek (çeyreklik)
             const { data: trendData } = await supabase
@@ -69,16 +84,16 @@ export const useDistricts = () => {
               name: district.name,
               coordinates: [district.latitude, district.longitude],
               radius: district.radius,
-              scores: scoresData
+              scores: scoresData && scoresData.length > 0
                 ? {
-                    infrastructure: Number(scoresData.infrastructure),
-                    environment: Number(scoresData.environment),
-                    social: Number(scoresData.social),
-                    transportation: Number(scoresData.transportation),
-                    security: Number(scoresData.security),
-                    education: Number(scoresData.education),
-                    health: Number(scoresData.health),
-                    overall: Number(scoresData.overall),
+                    infrastructure: Number(scoresData[0].infrastructure),
+                    environment: Number(scoresData[0].environment),
+                    social: Number(scoresData[0].social),
+                    transportation: Number(scoresData[0].transportation),
+                    security: Number(scoresData[0].security),
+                    education: Number(scoresData[0].education),
+                    health: Number(scoresData[0].health),
+                    overall: Number(scoresData[0].overall),
                   }
                 : {
                     infrastructure: 0,
@@ -90,13 +105,13 @@ export const useDistricts = () => {
                     health: 0,
                     overall: 0,
                   },
-              negativeFactors: factorsData
+              negativeFactors: factorsData && factorsData.length > 0
                 ? {
-                    uncontrolledMigration: Number(factorsData.uncontrolled_migration),
-                    informalSettlement: Number(factorsData.informal_settlement),
-                    crimeRate: Number(factorsData.crime_rate),
-                    trafficCongestion: Number(factorsData.traffic_congestion),
-                    noisePollution: Number(factorsData.noise_pollution),
+                    uncontrolledMigration: Number(factorsData[0].uncontrolled_migration),
+                    informalSettlement: Number(factorsData[0].informal_settlement),
+                    crimeRate: Number(factorsData[0].crime_rate),
+                    trafficCongestion: Number(factorsData[0].traffic_congestion),
+                    noisePollution: Number(factorsData[0].noise_pollution),
                   }
                 : {
                     uncontrolledMigration: 0,
@@ -105,7 +120,7 @@ export const useDistricts = () => {
                     trafficCongestion: 0,
                     noisePollution: 0,
                   },
-              trendData: trendData
+              trendData: trendData && trendData.length > 0
                 ? trendData.map((t) => Number(t.overall_score))
                 : [0, 0, 0, 0],
               recommendedActions: actionsData
@@ -122,11 +137,14 @@ export const useDistricts = () => {
           })
         );
 
+        console.log(`[useDistricts] Finished fetching district details (elapsed ${Date.now() - start}ms)`);
+
         setDistricts(districtsWithData);
       } catch (err) {
         console.error('Error fetching districts:', err);
         setError(err instanceof Error ? err.message : 'Veriler yüklenirken bir hata oluştu');
       } finally {
+        if (timeoutId) clearTimeout(timeoutId);
         setLoading(false);
       }
     };
