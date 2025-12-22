@@ -64,6 +64,13 @@ export const supabase: any = {
     }
   },
   storage: {
-    from() { return { async upload() { return { error: new Error('Supabase disabled') } }; } },
+    from() {
+      return {
+        async upload() {
+          console.warn('[supabase stub] storage.upload called — Supabase disabled');
+          return { data: null, error: new Error('Supabase disabled') };
+        },
+      };
+    },
   }
 };

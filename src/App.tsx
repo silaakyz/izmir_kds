@@ -4,37 +4,31 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
-import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
-import { Loader2 } from "lucide-react";
 
 const queryClient = new QueryClient();
 
-// Protected route wrapper
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-  
+/* =========================
+   PROTECTED ROUTE
+========================= */
+const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const user = localStorage.getItem("user");
+
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-  
-  return <>{children}</>;
+
+  return children;
 };
 
 const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/auth" element={<Auth />} />
+
       <Route
         path="/"
         element={
@@ -43,26 +37,26 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
-      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
 };
 
-const App = () => (
-  <HelmetProvider>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AuthProvider>
+const App = () => {
+  return (
+    <HelmetProvider>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
             <AppRoutes />
-          </AuthProvider>
-        </BrowserRouter>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </HelmetProvider>
-);
+          </BrowserRouter>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </HelmetProvider>
+  );
+};
 
 export default App;

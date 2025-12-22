@@ -1,48 +1,48 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { z } from "zod";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Building2, ShieldCheck } from "lucide-react";
 
-// Validation schemas
-const tcKimlikSchema = z.string()
+/* =========================
+   VALIDATION
+========================= */
+const tcKimlikSchema = z
+  .string()
   .length(11, "TC Kimlik numarası 11 haneli olmalıdır")
   .regex(/^\d+$/, "TC Kimlik numarası sadece rakamlardan oluşmalıdır");
 
-const passwordSchema = z.string()
-  .min(6, "Şifre en az 6 karakter olmalıdır");
+const passwordSchema = z.string().min(6, "Şifre en az 6 karakter olmalıdır");
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { user, loading } = useAuth();
   const { toast } = useToast();
-  
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Login form
+
   const [loginTc, setLoginTc] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
 
-  useEffect(() => {
-    if (!loading && user) {
-      navigate("/");
-    }
-  }, [user, loading, navigate]);
-
+  const [isLoading, setIsLoading] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
 
+  /* =========================
+     LOGIN (MySQL BACKEND)
+  ========================= */
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     try {
-      // Validate inputs
       tcKimlikSchema.parse(loginTc);
       passwordSchema.parse(loginPassword);
     } catch (error) {
@@ -55,144 +55,76 @@ const Auth = () => {
         return;
       }
     }
-    
+
     setIsLoading(true);
-    
-    // Create email from TC kimlik
-    const email = `${loginTc}@belediye.gov.tr`;
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password: loginPassword,
-    });
-    
-    if (error) {
-      setIsLoading(false);
-      console.error('Login error:', error);
-      
-      // Daha detaylı hata mesajları
-      let errorMessage = "TC Kimlik numarası veya şifre hatalı.";
-      if (error.message.includes("Email not confirmed")) {
-        errorMessage = "Email onaylanmamış. Lütfen email'inizi kontrol edin.";
-      } else if (error.message.includes("Invalid login credentials")) {
-        errorMessage = "TC Kimlik numarası veya şifre hatalı.";
-      } else if (error.message.includes("User not found")) {
-        errorMessage = "Kullanıcı bulunamadı. Lütfen önce hesap oluşturun.";
-      }
-      
-      toast({
-        title: "Giriş Başarısız",
-        description: errorMessage,
-        variant: "destructive",
+
+    try {
+      const res = await fetch("http://localhost:4000/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          tc: loginTc,
+          password: loginPassword,
+        }),
       });
-      return;
-    }
-    
-    // Session başarıyla oluşturuldu
-    if (data.session && data.user) {
-      // Auth state'in güncellenmesi için kısa bir bekleme
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setIsLoading(false);
-      
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Giriş başarısız");
+      }
+
+      // Basit session (ileride JWT yapılır)
+      localStorage.setItem("user", JSON.stringify(data.user));
+
       toast({
         title: "Giriş Başarılı",
         description: "Hoş geldiniz!",
       });
-      
-      // Navigate yerine window.location kullan (daha güvenilir)
-      window.location.href = "/";
-    } else {
-      setIsLoading(false);
+
+      navigate("/");
+    } catch (err: any) {
       toast({
-        title: "Hata",
-        description: "Giriş yapılamadı. Lütfen tekrar deneyin.",
+        title: "Giriş Başarısız",
+        description: err.message || "TC veya şifre hatalı",
         variant: "destructive",
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  /* =========================
+     DEMO USER (MySQL BACKEND)
+  ========================= */
   const createTestUser = async () => {
     setIsCreating(true);
-    
-    const tcKimlik = "12345678901";
-    const password = "123456";
-    const email = `${tcKimlik}@belediye.gov.tr`;
-    const adSoyad = "Test Kullanıcı";
 
     try {
-      // Try to sign up the test user
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: {
-            tc_kimlik: tcKimlik,
-            ad_soyad: adSoyad,
-          },
-        },
+      const res = await fetch("http://localhost:4000/api/demo-user", {
+        method: "POST",
       });
 
-      if (error) {
-        // If user already exists, just inform them
-        if (error.message.includes("already registered")) {
-          toast({
-            title: "Bilgi",
-            description: "Test kullanıcısı zaten mevcut. Giriş yapabilirsiniz.",
-          });
-          setLoginTc(tcKimlik);
-          setLoginPassword(password);
-        } else {
-          throw error;
-        }
-      } else if (data.user) {
-        // Email confirmation'ı atla (test için)
-        // Not: Production'da email confirmation açık olmalı
-        
-        // Create profile for the user
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: data.user.id,
-            tc_kimlik: tcKimlik,
-            ad_soyad: adSoyad,
-            unvan: "Bütçe Yönetim Müdürü",
-          });
+      const data = await res.json();
 
-        if (profileError) {
-          console.log("Profile might already exist:", profileError);
-        }
-
-        // Kullanıcıyı otomatik giriş yap
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (signInError) {
-          toast({
-            title: "Bilgi",
-            description: "Kullanıcı oluşturuldu. Lütfen giriş yapın.",
-          });
-          setLoginTc(tcKimlik);
-          setLoginPassword(password);
-        } else {
-          toast({
-            title: "Başarılı",
-            description: "Test kullanıcısı oluşturuldu ve giriş yapıldı!",
-          });
-          // Kısa bir bekleme sonrası yönlendir
-          setTimeout(() => {
-            window.location.href = "/";
-          }, 1000);
-        }
+      if (!data.success) {
+        throw new Error();
       }
-    } catch (error) {
-      console.error("Error creating test user:", error);
+
+      toast({
+        title: "Başarılı",
+        description: "Demo kullanıcı oluşturuldu.",
+      });
+
+      // Otomatik doldur
+      setLoginTc("12345678901");
+      setLoginPassword("123456");
+    } catch (err) {
       toast({
         title: "Hata",
-        description: "Test kullanıcısı oluşturulamadı.",
+        description: "Demo kullanıcı oluşturulamadı.",
         variant: "destructive",
       });
     } finally {
@@ -200,72 +132,66 @@ const Auth = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+  /* =========================
+     UI
+  ========================= */
   return (
     <>
       <Helmet>
-        <title>Giriş - LuxCivic Karar Destek Sistemi</title>
-        <meta name="description" content="LuxCivic Karar Destek Sistemi giriş sayfası" />
+        <title>Giriş - LuxCivic KDS</title>
       </Helmet>
-      
+
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4">
         <div className="w-full max-w-md">
-          {/* Logo & Title */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
               <Building2 className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">LuxCivic</h1>
-            <p className="text-muted-foreground">Kentsel Karar Destek Sistemi</p>
+            <h1 className="text-2xl font-bold">LuxCivic</h1>
+            <p className="text-muted-foreground">
+              Kentsel Karar Destek Sistemi
+            </p>
           </div>
-          
-          <Card className="border-border/50 shadow-xl">
+
+          <Card className="shadow-xl">
             <CardHeader className="text-center pb-2">
               <div className="inline-flex items-center justify-center gap-2 text-sm text-muted-foreground mb-2">
                 <ShieldCheck className="h-4 w-4 text-primary" />
                 Bütçe Yönetim Müdürü Girişi
               </div>
-              <CardTitle className="text-xl">Hoş Geldiniz</CardTitle>
+              <CardTitle>Hoş Geldiniz</CardTitle>
               <CardDescription>
                 Devam etmek için giriş yapın
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="login-tc">TC Kimlik Numarası</Label>
+                  <Label>TC Kimlik Numarası</Label>
                   <Input
-                    id="login-tc"
-                    type="text"
-                    placeholder="11 haneli TC Kimlik No"
                     value={loginTc}
-                    onChange={(e) => setLoginTc(e.target.value.replace(/\D/g, "").slice(0, 11))}
+                    onChange={(e) =>
+                      setLoginTc(
+                        e.target.value.replace(/\D/g, "").slice(0, 11)
+                      )
+                    }
                     maxLength={11}
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
-                  <Label htmlFor="login-password">Şifre</Label>
+                  <Label>Şifre</Label>
                   <Input
-                    id="login-password"
                     type="password"
-                    placeholder="••••••••"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     required
                   />
                 </div>
-                
-                <Button type="submit" className="w-full" disabled={isLoading}>
+
+                <Button className="w-full" disabled={isLoading}>
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -278,10 +204,12 @@ const Auth = () => {
 
                 <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border" />
+                    <div className="w-full border-t" />
                   </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-card px-2 text-muted-foreground">veya</span>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-card px-2 text-muted-foreground">
+                      veya
+                    </span>
                   </div>
                 </div>
 
@@ -304,7 +232,7 @@ const Auth = () => {
               </form>
             </CardContent>
           </Card>
-          
+
           <p className="text-center text-xs text-muted-foreground mt-6">
             Bu sistem sadece yetkili belediye personeli içindir.
           </p>
