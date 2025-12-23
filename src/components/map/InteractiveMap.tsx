@@ -4,6 +4,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { RadarAnalysis } from "@/components/dashboard/RadarAnalysis";
 import { MapPin, ZoomIn, ZoomOut, Layers } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as ReTooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
 
 interface InteractiveMapProps {
   districts: District[];
@@ -158,40 +167,42 @@ export const InteractiveMap = ({ districts }: InteractiveMapProps) => {
           
           <div className="glass-card p-6 animate-fade-up">
             <h3 className="text-lg font-bold text-foreground mb-4">
-              {selectedDistrict.name} - Önerilen Aksiyonlar
+              {selectedDistrict.name} - Önerilen Aksiyonlar (Grafik)
             </h3>
-            <div className="space-y-3">
-              {selectedDistrict.recommendedActions.map((action, idx) => (
-                <div
-                  key={idx}
-                  className="p-4 rounded-xl border border-border bg-background/50"
+            <div className="h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={selectedDistrict.recommendedActions.map((a) => ({
+                    label: a.action.length > 32 ? a.action.slice(0, 32) + "..." : a.action,
+                    potentialScore: a.potentialScore,
+                    priority: a.priority,
+                    budget: a.budget,
+                  }))}
+                  layout="vertical"
+                  margin={{ left: 0, right: 20 }}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-foreground">{action.action}</span>
-                    <Badge
-                      variant={
-                        action.priority === "high"
-                          ? "destructive"
-                          : action.priority === "medium"
-                          ? "secondary"
-                          : "outline"
-                      }
-                    >
-                      {action.priority === "high"
-                        ? "Yüksek"
-                        : action.priority === "medium"
-                        ? "Orta"
-                        : "Düşük"}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>Bütçe: {action.budget}</span>
-                    <span className="text-score-excellent font-medium">
-                      +{action.potentialScore.toFixed(1)} puan
-                    </span>
-                  </div>
-                </div>
-              ))}
+                  <XAxis type="number" domain={[0, "dataMax + 0.5"]} tick={{ fontSize: 10 }} />
+                  <YAxis dataKey="label" type="category" width={180} tick={{ fontSize: 11 }} />
+                  <ReTooltip
+                    formatter={(value: number) => [`+${Number(value).toFixed(1)} puan`, "Potansiyel"]}
+                    itemStyle={{ fontSize: 12 }}
+                  />
+                  <Bar dataKey="potentialScore" radius={[0, 8, 8, 0]}>
+                    {selectedDistrict.recommendedActions.map((a, i) => (
+                      <Cell
+                        key={i}
+                        fill={
+                          a.priority === "high" ? "#ef4444" : a.priority === "medium" ? "#f59e0b" : "#10b981"
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="mt-3 text-xs text-muted-foreground">
+              <div>Bütçe bilgilerinin ve önceliğin gösterimi renkle vurgulanmıştır.</div>
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import IzmirMap from "@/components/map/IzmirMap";
+import { InteractiveMap } from "@/components/map/InteractiveMap";
 import { useState, useMemo } from "react";
 import { Helmet } from "react-helmet-async";
 import { Header } from "@/components/layout/Header";
@@ -17,7 +17,7 @@ import { DashboardTable } from "@/components/dashboard/DashboardTable";
 const Index = () => {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [selectedCategory, setSelectedCategory] = useState("all");
-  const [scoreRange, setScoreRange] = useState<[number, number]>([0, 10]);
+  const [scoreRange, setScoreRange] = useState<number[]>([0, 10]);
   const [sortBy, setSortBy] = useState("score-desc");
 
   // DB → fallback mock
@@ -129,8 +129,8 @@ const Index = () => {
 
       case "map":
         return (
-          <div className="h-[600px] rounded-xl overflow-hidden border">
-            <IzmirMap districts={allDistricts} />
+          <div className="space-y-6">
+            <InteractiveMap districts={allDistricts} />
           </div>
         );
 
