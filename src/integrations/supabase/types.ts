@@ -175,7 +175,7 @@ export type Database = {
           }
         ]
       }
-      recommended_actions: {
+      actions: {
         Row: {
           id: number
           district_id: number
@@ -211,7 +211,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "recommended_actions_district_id_fkey"
+            foreignKeyName: "actions_district_id_fkey"
             columns: ["district_id"]
             referencedRelation: "districts"
             referencedColumns: ["id"]

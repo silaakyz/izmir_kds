@@ -45,7 +45,7 @@ export const RecommendationsPanel = ({ districts }: RecommendationsPanelProps) =
     <div className="glass-card p-6 animate-fade-up" style={{ animationDelay: "300ms" }}>
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-bold text-foreground">
-          Öncelikli Öneriler
+          Öncelikli Aksiyonlar
         </h3>
         <Badge variant="secondary" className="text-xs">
           {priorityActions.length} Aksiyon
