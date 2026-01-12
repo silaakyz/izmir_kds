@@ -3,6 +3,7 @@ import cors from "cors";
 import { db } from "./db.js";
 
 const app = express();
+const API_PORT = 4000;
 
 app.use(cors());
 app.use(express.json());
@@ -15,59 +16,84 @@ app.get("/api/hello", (req, res) => {
 });
 
 /* ===============================
-   🔥 FULL DISTRICT DATA (DOĞRU HALİ)
+   LOGIN (DÜZ ŞİFRE)
+================================ */
+app.post("/api/login", async (req, res) => {
+  try {
+    const { tc, password } = req.body;
+
+    if (!tc || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "TC ve şifre gerekli",
+      });
+    }
+
+    const [rows] = await db.query(
+      "SELECT id, tc, password_hash, role FROM users WHERE tc = ?",
+      [tc]
+    );
+
+    const user = rows[0];
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Kullanıcı bulunamadı",
+      });
+    }
+
+    // 🔥 DÜZ ŞİFRE KARŞILAŞTIRMA
+    if (password !== user.password_hash) {
+      return res.status(401).json({
+        success: false,
+        message: "Şifre yanlış",
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        tc: user.tc,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error("LOGIN HATASI:", err);
+    res.status(500).json({
+      success: false,
+      message: "Sunucu hatası",
+    });
+  }
+});
+
+/* ===============================
+   🔥 FULL DISTRICT DATA (AYNI)
 ================================ */
 app.get("/api/districts-full", async (req, res) => {
   try {
     const [districts] = await db.query("SELECT * FROM districts");
-
     const result = [];
 
     for (const d of districts) {
-      /* ===== SCORE ===== */
       const [[scores]] = await db.query(
-        `
-        SELECT * FROM district_scores
-        WHERE district_id = ?
-        ORDER BY year DESC, score_date DESC
-        LIMIT 1
-        `,
+        `SELECT * FROM district_scores WHERE district_id = ? ORDER BY year DESC, score_date DESC LIMIT 1`,
         [d.id]
       );
 
-      /* ===== NEGATIVE FACTORS ===== */
       const [[factors]] = await db.query(
-        `
-        SELECT * FROM negative_factors
-        WHERE district_id = ?
-        ORDER BY factor_date DESC
-        LIMIT 1
-        `,
+        `SELECT * FROM negative_factors WHERE district_id = ? ORDER BY factor_date DESC LIMIT 1`,
         [d.id]
       );
 
-      /* ===== TREND ===== */
       const [trendRows] = await db.query(
-        `
-        SELECT overall
-        FROM district_scores
-        WHERE district_id = ?
-        ORDER BY year DESC, score_date DESC
-        LIMIT 4
-        `,
+        `SELECT overall FROM district_scores WHERE district_id = ? ORDER BY year DESC, score_date DESC LIMIT 4`,
         [d.id]
       );
 
-      /* ===== ACTIONS ===== */
       const [actions] = await db.query(
-        `
-        SELECT *
-        FROM actions
-        WHERE district_id = ?
-        ORDER BY
-          FIELD(priority,'high','medium','low'),
-          created_at DESC
-        `,
+        `SELECT * FROM actions WHERE district_id = ? ORDER BY FIELD(priority,'high','medium','low'), created_at DESC`,
         [d.id]
       );
 
@@ -76,7 +102,6 @@ app.get("/api/districts-full", async (req, res) => {
         name: d.name,
         coordinates: [Number(d.lat), Number(d.lng)],
         radius: d.radius,
-
         scores: scores
           ? {
               infrastructure: Number(scores.infrastructure),
@@ -98,7 +123,6 @@ app.get("/api/districts-full", async (req, res) => {
               health: 0,
               overall: 0,
             },
-
         negativeFactors: factors
           ? {
               uncontrolledMigration: Number(factors.uncontrolled_migration),
@@ -116,9 +140,7 @@ app.get("/api/districts-full", async (req, res) => {
               noisePollution: 0,
               airPollution: 0,
             },
-
         trendData: trendRows.map(t => Number(t.overall)),
-
         recommendedActions: actions.map(a => ({
           action: a.action,
           category: a.category,
@@ -138,6 +160,6 @@ app.get("/api/districts-full", async (req, res) => {
   }
 });
 
-app.listen(4000, () => {
-  console.log("🚀 Backend çalışıyor → http://localhost:4000");
+app.listen(API_PORT, () => {
+  console.log(`🚀 Backend çalışıyor → http://localhost:${API_PORT}`);
 });
